@@ -1,0 +1,22 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application android:theme="@style/Theme.GymFlow" android:label="GymFlow" android:allowBackup="true" android:supportsRtl="true">
+        <activity android:name=".SettingsActivity" />
+        <activity android:name=".ProgressActivity" />
+        <activity android:name=".TeachersActivity" />
+        <activity android:name=".RoutinesActivity" />
+        <activity android:name=".CreateRoutineActivity" />
+        <activity android:name=".EquipmentActivity" />
+        <activity android:name=".PaymentsActivity" />
+        <activity android:name=".MembersActivity" />
+        <activity android:name=".MainActivity" />
+        <activity android:name=".RegisterActivity" android:exported="false" />
+        <activity android:name=".SetupGymActivity" android:exported="false" />
+        <activity android:name=".LoginActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

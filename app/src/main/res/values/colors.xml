@@ -1,0 +1,10 @@
+<resources>
+    <color name="gf_bg">#0B141B</color>
+    <color name="gf_card">#14212B</color>
+    <color name="gf_card2">#1A2A36</color>
+    <color name="gf_green">#31E86B</color>
+    <color name="gf_green_dark">#16B64A</color>
+    <color name="gf_text">#F5F7F8</color>
+    <color name="gf_muted">#9BAAB5</color>
+    <color name="gf_red">#FF5A67</color>
+</resources>
