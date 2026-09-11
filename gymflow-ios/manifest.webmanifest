@@ -1,0 +1,18 @@
+{
+  "name": "GymFlow",
+  "short_name": "GymFlow",
+  "description": "GymFlow para iPhone y iPad",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0d0f",
+  "theme_color": "#0b0d0f",
+  "icons": [
+    {
+      "src": "https://kyxkisnnknymuxqrwxzv.supabase.co/functions/v1/gymflow-ios/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
