@@ -19,6 +19,7 @@ jobs:
       SUPABASE_URL: https://kyxkisnnknymuxqrwxzv.supabase.co
       SOURCE_FUNCTION: https://kyxkisnnknymuxqrwxzv.supabase.co/functions/v1/gf-build-source-1530
       TARGET_PATH: android/candidates/GymFlow-1.5.30-debug.apk
+      PUBLISH_FUNCTION: https://kyxkisnnknymuxqrwxzv.supabase.co/functions/v1/gf-build-publish-1530
 
     steps:
       - name: Checkout build harness
@@ -94,25 +95,15 @@ jobs:
           sha256sum GymFlow-1.5.30-debug.apk | tee GymFlow-1.5.30-debug.sha256
           ls -lh GymFlow-1.5.30-debug.apk
 
-      - name: Read Supabase publishable key
-        shell: bash
-        run: |
-          KEY="$(grep 'SUPABASE_ANON_KEY' private-project/app/build.gradle | sed -E 's/.*"(sb_publishable_[^"]+)".*/\1/')"
-          test -n "$KEY"
-          echo "::add-mask::$KEY"
-          echo "SUPABASE_PUBLISHABLE_KEY=$KEY" >> "$GITHUB_ENV"
-
-      - name: Publish APK
+      - name: Publish APK securely
         shell: bash
         run: |
           curl --fail-with-body --silent --show-error \
             -X POST \
-            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
-            -H "Authorization: Bearer $SUPABASE_PUBLISHABLE_KEY" \
+            -H "Authorization: Bearer $GYMFLOW_OIDC_TOKEN" \
             -H "Content-Type: application/vnd.android.package-archive" \
-            -H "x-upsert: true" \
             --data-binary '@GymFlow-1.5.30-debug.apk' \
-            "$SUPABASE_URL/storage/v1/object/gymflow-releases/$TARGET_PATH"
+            "$PUBLISH_FUNCTION"
 
       - name: Verify published APK
         shell: bash
