@@ -1,0 +1,121 @@
+name: Build GymFlow 1.5.30 via public runner
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "gymflow-build-1530" ]
+    paths:
+      - ".github/workflows/build-gymflow-1530.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: https://kyxkisnnknymuxqrwxzv.supabase.co
+      SOURCE_FUNCTION: https://kyxkisnnknymuxqrwxzv.supabase.co/functions/v1/gf-build-source-1530
+      TARGET_PATH: android/candidates/GymFlow-1.5.30-debug.apk
+
+    steps:
+      - name: Checkout build harness
+        uses: actions/checkout@v4
+
+      - name: Get GitHub OIDC token
+        shell: bash
+        run: |
+          RESPONSE="$(curl --fail-with-body --silent --show-error \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=gymflow-apk-builder")"
+          TOKEN="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<<"$RESPONSE")"
+          test -n "$TOKEN"
+          echo "::add-mask::$TOKEN"
+          echo "GYMFLOW_OIDC_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+
+      - name: Fetch private GymFlow 1.5.30 source
+        shell: bash
+        run: |
+          curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $GYMFLOW_OIDC_TOKEN" \
+            "$SOURCE_FUNCTION" -o /tmp/gymflow-source.json
+          python3 - <<'PY'
+          import json, pathlib
+          src=json.load(open('/tmp/gymflow-source.json',encoding='utf-8'))
+          root=pathlib.Path('private-project')
+          for rel,content in src.items():
+              p=root/rel
+              p.parent.mkdir(parents=True,exist_ok=True)
+              p.write_text(content,encoding='utf-8')
+          print("restored",len(src),"files")
+          PY
+          grep -q 'versionCode 64' private-project/app/build.gradle
+          grep -q 'versionName "1.5.30"' private-project/app/build.gradle
+          grep -q 'gf-web-routine-builder' private-project/app/src/main/java/com/gymflow/app/ProfessionalRoutineBuilderActivity.java
+
+      - name: Apply launcher icon
+        shell: bash
+        run: |
+          rm -f private-project/app/src/main/res/drawable/ic_gymflow.xml
+          base64 -d private-project/app/gymflow_icon.b64 > private-project/app/src/main/res/drawable/ic_gymflow.jpg
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Compile GymFlow
+        working-directory: private-project
+        run: |
+          gradle --no-daemon compileDebugJavaWithJavac --stacktrace
+          gradle --no-daemon assembleDebug --stacktrace
+
+      - name: Prepare APK
+        shell: bash
+        run: |
+          cp private-project/app/build/outputs/apk/debug/app-debug.apk GymFlow-1.5.30-debug.apk
+          sha256sum GymFlow-1.5.30-debug.apk | tee GymFlow-1.5.30-debug.sha256
+          ls -lh GymFlow-1.5.30-debug.apk
+
+      - name: Read Supabase publishable key
+        shell: bash
+        run: |
+          KEY="$(grep 'SUPABASE_ANON_KEY' private-project/app/build.gradle | sed -E 's/.*"(sb_publishable_[^"]+)".*/\1/')"
+          test -n "$KEY"
+          echo "::add-mask::$KEY"
+          echo "SUPABASE_PUBLISHABLE_KEY=$KEY" >> "$GITHUB_ENV"
+
+      - name: Publish APK
+        shell: bash
+        run: |
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_PUBLISHABLE_KEY" \
+            -H "Content-Type: application/vnd.android.package-archive" \
+            -H "x-upsert: true" \
+            --data-binary '@GymFlow-1.5.30-debug.apk' \
+            "$SUPABASE_URL/storage/v1/object/gymflow-releases/$TARGET_PATH"
+
+      - name: Verify published APK
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --head \
+            "$SUPABASE_URL/storage/v1/object/public/gymflow-releases/$TARGET_PATH"
